@@ -7,50 +7,63 @@ source "$TMUXIFIER/lib/util.sh"
 
 # Provide tmuxifier help
 if calling-help "$@"; then
-  echo "usage: tmuxifier new-session <layout_name>
+    echo "usage: tmuxifier new-session <layout_name>
 
 Aliases: new-ses, nses, ns
 
 Create a new session layout and open it for editing in \$EDITOR."
-  exit
+    exit
 fi
 
 # Provide tmuxifier completions
 if calling-complete "$@"; then
-  tmuxifier-list-sessions
-  exit
+    tmuxifier-list-sessions
+    exit
 fi
 
 if [ -z "$1" ]; then
-  echo "$(tmuxifier-help new-session $@)" >&2
-  exit 1
+    echo "$(tmuxifier-help new-session $@)" >&2
+    exit 1
 fi
 
 layout_name="$1"
+session_path="$TMUXIFIER_SESSION_BASE_PATH/${layout_name}"
 layout_file="$TMUXIFIER_LAYOUT_PATH/${layout_name}.session.sh"
 template="$TMUXIFIER/templates/session.sh"
 
+if [ $# -eq 2 ]; then
+    if [ "$2" == "." ]; then
+        session_path="$(pwd)"
+    else
+        session_path=$2
+    fi
+fi
+
+# Attempt to make session_path relative to users home directory
+session_path=${session_path//$HOME/"~"}
+
 if [ ! -f "$template" ]; then
-  echo "tmuxifier: session layout template not found: $template" >&2
-  exit 1
+    echo "tmuxifier: session layout template not found \"$template\"" >&2
+    exit 1
 fi
 
 if [ -f "$layout_file" ]; then
-  echo "session layout '$layout_name' already exists." >&2
-  echo "" >&2
-  echo "You can edit it with:" >&2
-  echo "  tmuxifier edit-session \"$layout_name\"" >&2
-  exit 1
+    echo "session layout '$layout_name' already exists." >&2
+    echo "" >&2
+    echo "You can edit it with:" >&2
+    echo "  tmuxifier edit-session \"$layout_name\"" >&2
+    exit 1
 fi
 
 content="$(cat "$template")"
-echo "${content//\{\{SESSION_NAME\}\}/$layout_name}" > "$layout_file"
+content="${content//\{\{SESSION_PATH\}\}/$session_path}"
+echo "${content//\{\{SESSION_NAME\}\}/$layout_name}" >"$layout_file"
 
 if [ -n "$EDITOR" ]; then
-  exec $EDITOR "$layout_file"
+    exec $EDITOR "$layout_file"
 else
-  echo "Layout file has been created, but '\$EDITOR' is not set. Please "
-  echo "manually open the layout for editing:"
-  echo "$layout_file"
-  echo
+    echo "Layout file has been created, but '\$EDITOR' is not set. Please "
+    echo "manually open the layout for editing:"
+    echo "$layout_file"
+    echo
 fi
